@@ -39,8 +39,7 @@ async function extractArticleContent(url: string): Promise<{ title: string; cont
         'Accept-Encoding': 'gzip, deflate',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
-      },
-      timeout: 10000
+      }
     });
     
     if (!response.ok) {
@@ -141,7 +140,8 @@ async function extractArticleContent(url: string): Promise<{ title: string; cont
     
   } catch (error) {
     console.error('Error extracting article content:', error);
-    throw new Error(`Failed to extract article content: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to extract article content: ${errorMessage}`);
   }
 }
 
@@ -186,13 +186,15 @@ export async function POST(request: NextRequest) {
       contentLength: content.length
     });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('Article summarization error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to summarize article. Please try again.';
+    const errorStack = error instanceof Error && process.env.NODE_ENV === 'development' ? error.stack : undefined;
     
     return NextResponse.json(
       { 
-        error: error.message || 'Failed to summarize article. Please try again.',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        error: errorMessage,
+        details: errorStack
       },
       { status: 500 }
     );

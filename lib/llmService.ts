@@ -55,8 +55,8 @@ async function summarizeWithOpenAI(request: SummaryRequest, config: LLMConfig): 
     // Parse bullet points
     const bulletPoints = summaryText
       .split('\n')
-      .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*'))
-      .map(line => line.trim())
+      .filter((line: string) => line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*'))
+      .map((line: string) => line.trim())
       .slice(0, 5);
 
     // Ensure we have exactly 5 points
@@ -71,10 +71,11 @@ async function summarizeWithOpenAI(request: SummaryRequest, config: LLMConfig): 
 
   } catch (error) {
     console.error('OpenAI summarization error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       summary: [],
       success: false,
-      error: error.message
+      error: errorMessage
     };
   }
 }
@@ -112,8 +113,8 @@ async function summarizeWithAnthropic(request: SummaryRequest, config: LLMConfig
     // Parse bullet points
     const bulletPoints = summaryText
       .split('\n')
-      .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*'))
-      .map(line => line.trim())
+      .filter((line: string) => line.trim().startsWith('•') || line.trim().startsWith('-') || line.trim().startsWith('*'))
+      .map((line: string) => line.trim())
       .slice(0, 5);
 
     // Ensure we have exactly 5 points
@@ -128,10 +129,11 @@ async function summarizeWithAnthropic(request: SummaryRequest, config: LLMConfig
 
   } catch (error) {
     console.error('Anthropic summarization error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       summary: [],
       success: false,
-      error: error.message
+      error: errorMessage
     };
   }
 }

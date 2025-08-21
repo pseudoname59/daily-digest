@@ -1,5 +1,26 @@
 // AI Service for generating daily digests
 
+interface NewsArticle {
+  title: string;
+  description?: string;
+  content?: string;
+  url?: string;
+  source: { name: string };
+  publishedAt: string;
+  published_at?: string; // Alternative property name from some APIs
+}
+
+interface NewsAPIResponse {
+  status: string;
+  message?: string;
+  articles?: NewsArticle[];
+}
+
+interface GNewsResponse {
+  errors?: string[];
+  articles?: NewsArticle[];
+}
+
 export interface DigestRequest {
   topics: string[];
   timeframe: string;
@@ -118,12 +139,12 @@ const FALLBACK_NEWS = {
   ]
 };
 
-async function fetchNewsFromNewsAPI(topic: string): Promise<any[]> {
+async function fetchNewsFromNewsAPI(topic: string): Promise<NewsArticle[]> {
   try {
     const response = await fetch(
       `https://newsapi.org/v2/everything?q=${encodeURIComponent(topic)}&from=${getDate24HoursAgo()}&sortBy=publishedAt&language=en&apiKey=${NEWS_API_KEY}`
     );
-    const data = await response.json();
+    const data: NewsAPIResponse = await response.json();
     
     // Check for API errors
     if (data.status === 'error') {
@@ -138,12 +159,12 @@ async function fetchNewsFromNewsAPI(topic: string): Promise<any[]> {
   }
 }
 
-async function fetchNewsFromGNews(topic: string): Promise<any[]> {
+async function fetchNewsFromGNews(topic: string): Promise<NewsArticle[]> {
   try {
     const response = await fetch(
       `https://gnews.io/api/v4/search?q=${encodeURIComponent(topic)}&from=${getDate24HoursAgo()}&sortby=publishedAt&lang=en&apikey=${GNEWS_API_KEY}`
     );
-    const data = await response.json();
+    const data: GNewsResponse = await response.json();
     
     // Check for API errors
     if (data.errors && data.errors.length > 0) {
@@ -189,7 +210,7 @@ function validateTopic(topic: string): boolean {
   return !gibberishPatterns.some(pattern => pattern.test(topic));
 }
 
-function getFallbackNews(topic: string): any[] {
+function getFallbackNews(topic: string): NewsArticle[] {
   const topicLower = topic.toLowerCase();
   
   // Find matching fallback news
@@ -231,7 +252,7 @@ export async function generateDigest(request: DigestRequest): Promise<DigestResp
     throw new Error(`Invalid topics detected: ${invalidTopics.join(', ')}. Please enter valid topic names.`);
   }
   
-  const allArticles: any[] = [];
+  const allArticles: NewsArticle[] = [];
   const sources: string[] = [];
   
   // Fetch news from multiple sources for each topic
@@ -286,7 +307,7 @@ export async function generateDigest(request: DigestRequest): Promise<DigestResp
   };
 }
 
-function generateDigestContent(articles: any[], topics: string[]): string {
+function generateDigestContent(articles: NewsArticle[], topics: string[]): string {
   const date = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -300,7 +321,7 @@ function generateDigestContent(articles: any[], topics: string[]): string {
   content += `Here's what's happening in your areas of interest:\n\n`;
   
   // Group articles by topic
-  const articlesByTopic: { [key: string]: any[] } = {};
+  const articlesByTopic: { [key: string]: NewsArticle[] } = {};
   
   articles.forEach(article => {
     const title = article.title?.toLowerCase() || '';
