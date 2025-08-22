@@ -20,6 +20,7 @@ export default function HomePageContent() {
   const [removingTopic, setRemovingTopic] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'digest' | 'summarizer'>('digest');
+  const [lastClickTime, setLastClickTime] = useState(0);
   
   // Use proper Firebase authentication
   const { user, loading, preferences, addInterest, removeInterest, signIn, signUp, logout } = useAuth();
@@ -100,6 +101,13 @@ export default function HomePageContent() {
       return;
     }
 
+    // Prevent rapid clicks
+    const now = Date.now();
+    if (now - lastClickTime < 1000) {
+      return;
+    }
+    setLastClickTime(now);
+
     const trimmedInterest = interest.trim();
     
     if (!trimmedInterest) {
@@ -126,6 +134,7 @@ export default function HomePageContent() {
       console.error('Error adding interest:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to add topic. Please try again.';
       showNotification('error', errorMessage);
+      // Don't clear the input on error so user can try again
     } finally {
       setAddingTopic(false);
     }

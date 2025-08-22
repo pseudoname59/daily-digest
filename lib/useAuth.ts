@@ -101,7 +101,7 @@ export function useAuth() {
     
     if (!user || !db) {
       console.log('No user or db, returning early');
-      return;
+      throw new Error('User or database not available');
     }
 
     try {
@@ -124,6 +124,9 @@ export function useAuth() {
       console.log('Preferences saved successfully');
     } catch (error) {
       console.error('Error saving preferences:', error);
+      // Update local state even if Firebase fails to prevent infinite loops
+      setPreferences(interests);
+      console.log('Updated local state despite Firebase error');
       throw error;
     }
   };
@@ -155,7 +158,14 @@ export function useAuth() {
     console.log('Adding interest, new preferences will be:', newInterests);
     
     try {
-      await saveUserPreferences(newInterests);
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Operation timed out')), 10000)
+      );
+      
+      const savePromise = saveUserPreferences(newInterests);
+      await Promise.race([savePromise, timeoutPromise]);
+      
       console.log('addInterest completed successfully');
     } catch (error) {
       console.error('Error in addInterest:', error);
