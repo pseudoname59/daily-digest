@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
@@ -9,6 +9,7 @@ import { LoadingSpinner } from "./LoadingSpinner";
 import { generateDigest as generateAIDigest } from "../lib/aiService";
 import DigestDisplay from "./DigestDisplay";
 import ArticleSummarizer from "./ArticleSummarizer";
+import { useAuth } from "../lib/useAuth";
 
 export default function HomePageContent() {
   const [interest, setInterest] = useState("");
@@ -18,66 +19,50 @@ export default function HomePageContent() {
   const [addingTopic, setAddingTopic] = useState(false);
   const [removingTopic, setRemovingTopic] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const [preferences, setPreferences] = useState<string[]>([]);
-  const [user, setUser] = useState<{ email: string } | null>(null);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'digest' | 'summarizer'>('digest');
+  
+  // Use proper Firebase authentication
+  const { user, loading, preferences, addInterest, removeInterest, signIn, signUp, logout } = useAuth();
 
-  // Load user and preferences from localStorage on mount
-  useEffect(() => {
-    const savedUser = localStorage.getItem('daily_digest_user');
-    const savedPreferences = localStorage.getItem('daily_digest_preferences');
-    
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    if (savedPreferences) {
-      setPreferences(JSON.parse(savedPreferences));
-    }
-  }, []);
+  // Remove the localStorage loading since we're using Firebase now
 
   const showNotification = (type: 'success' | 'error', message: string) => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const addInterest = async (newInterest: string) => {
-    const updatedPreferences = [...preferences, newInterest];
-    setPreferences(updatedPreferences);
-    localStorage.setItem('daily_digest_preferences', JSON.stringify(updatedPreferences));
-    console.log('Saved preferences:', updatedPreferences);
+  // Remove the old functions since we're using the ones from useAuth hook
+
+  const handleSignIn = async (email: string, password: string) => {
+    try {
+      await signIn(email, password);
+      setShowAuthModal(false);
+      showNotification('success', 'Signed in successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Sign in failed';
+      showNotification('error', errorMessage);
+    }
   };
 
-  const removeInterest = async (interestToRemove: string) => {
-    const updatedPreferences = preferences.filter(p => p !== interestToRemove);
-    setPreferences(updatedPreferences);
-    localStorage.setItem('daily_digest_preferences', JSON.stringify(updatedPreferences));
-    console.log('Updated preferences after removal:', updatedPreferences);
+  const handleSignUp = async (email: string, password: string) => {
+    try {
+      await signUp(email, password);
+      setShowAuthModal(false);
+      showNotification('success', 'Account created successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Sign up failed';
+      showNotification('error', errorMessage);
+    }
   };
 
-  const signIn = async (email: string, password: string) => {
-    // Simple mock authentication
-    const mockUser = { email };
-    setUser(mockUser);
-    localStorage.setItem('daily_digest_user', JSON.stringify(mockUser));
-    setShowAuthModal(false);
-    showNotification('success', 'Signed in successfully!');
-  };
-
-  const signUp = async (email: string, password: string) => {
-    // Simple mock registration
-    const mockUser = { email };
-    setUser(mockUser);
-    localStorage.setItem('daily_digest_user', JSON.stringify(mockUser));
-    setShowAuthModal(false);
-    showNotification('success', 'Account created successfully!');
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('daily_digest_user');
-    showNotification('success', 'Signed out successfully!');
+  const handleLogout = async () => {
+    try {
+      await logout();
+      showNotification('success', 'Signed out successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Sign out failed';
+      showNotification('error', errorMessage);
+    }
   };
 
   const validateTopic = (topic: string): boolean => {
@@ -270,7 +255,7 @@ export default function HomePageContent() {
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">{user.email}</span>
               <Button
-                onClick={logout}
+                onClick={handleLogout}
                 variant="outline"
                 size="sm"
                 className="text-gray-600 hover:text-gray-900"
@@ -396,7 +381,7 @@ export default function HomePageContent() {
            {/* Article Summarizer Tab Content */}
            {activeTab === 'summarizer' && (
              <div className="max-w-4xl mx-auto">
-               <ArticleSummarizer user={user} />
+               <ArticleSummarizer user={user ? { email: user.email || '' } : null} />
              </div>
            )}
          </div>
@@ -561,8 +546,8 @@ export default function HomePageContent() {
        <AuthModal
          isOpen={showAuthModal}
          onClose={() => setShowAuthModal(false)}
-         onSignIn={signIn}
-         onSignUp={signUp}
+         onSignIn={handleSignIn}
+         onSignUp={handleSignUp}
        />
      </div>
    );
