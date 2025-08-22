@@ -30,50 +30,67 @@ export function useAuth() {
   useEffect(() => {
     console.log('Setting up auth state listener...');
     
-    // Check if Firebase instances are available
-    if (!auth || !db) {
-      console.log('Firebase instances not available yet, waiting...');
-      // Wait a bit for Firebase to initialize
-      const timer = setTimeout(() => {
-        if (!auth || !db) {
-          console.error('Firebase instances still not available');
-          setError('Firebase not initialized');
-          setLoading(false);
-        }
-      }, 1000);
+    // Initialize Firebase if not already done
+    const initializeAuth = async () => {
+      // Wait for Firebase to be ready (max 2 seconds)
+      let attempts = 0;
+      const maxAttempts = 20; // 20 * 100ms = 2 seconds
       
-      return () => clearTimeout(timer);
-    }
-    
-    try {
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
-        setUser(user);
-        if (user) {
-          // Load user preferences from Firestore
-          await loadUserPreferences(user.uid);
-        } else {
-          setPreferences([]);
-        }
+      while ((!auth || !db) && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!auth || !db) {
+        console.error('Firebase instances not available after 2 seconds');
+        setError('Firebase not initialized');
         setLoading(false);
-      }, (error) => {
-        console.error('Auth state change error:', error);
-        setError('Authentication error');
-        setLoading(false);
-      });
+        return;
+      }
+      
+      try {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
+          setUser(user);
+          if (user) {
+            // Load user preferences from Firestore
+            await loadUserPreferences(user.uid);
+          } else {
+            setPreferences([]);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error('Auth state change error:', error);
+          setError('Authentication error');
+          setLoading(false);
+        });
 
-      return unsubscribe;
-    } catch (err) {
-      console.error('Error setting up auth listener:', err);
-      setError('Failed to initialize authentication');
-      setLoading(false);
-    }
+        return unsubscribe;
+      } catch (err) {
+        console.error('Error setting up auth listener:', err);
+        setError('Failed to initialize authentication');
+        setLoading(false);
+      }
+    };
+    
+    initializeAuth();
   }, []);
 
   // Load user preferences from Firestore
   const loadUserPreferences = async (userId: string) => {
     if (!db) {
-      console.error('Firestore not available');
+      console.error('Firestore not available, trying localStorage fallback');
+      // Try to load from localStorage as fallback
+      const offlinePrefs = localStorage.getItem(`preferences_${userId}`);
+      if (offlinePrefs) {
+        try {
+          const parsedPrefs = JSON.parse(offlinePrefs);
+          setPreferences(parsedPrefs);
+          console.log('Loaded preferences from localStorage:', parsedPrefs);
+        } catch (parseError) {
+          console.error('Error parsing localStorage preferences:', parseError);
+        }
+      }
       return;
     }
     
@@ -86,26 +103,37 @@ export function useAuth() {
         const userData = userSnap.data();
         if (userData.preferences?.interests) {
           setPreferences(userData.preferences.interests);
-          console.log('Loaded preferences:', userData.preferences.interests);
+          console.log('Loaded preferences from Firestore:', userData.preferences.interests);
+          // Also save to localStorage as backup
+          localStorage.setItem(`preferences_${userId}`, JSON.stringify(userData.preferences.interests));
         }
       } else {
-        console.log('No existing preferences found for user');
-      }
-    } catch (error) {
-      console.error('Error loading preferences:', error);
-      
-      // Try to load from localStorage if offline
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.log('User is offline, loading preferences from localStorage');
-        const offlinePrefs = localStorage.getItem('offline_preferences');
+        console.log('No existing preferences found for user in Firestore');
+        // Try localStorage as fallback
+        const offlinePrefs = localStorage.getItem(`preferences_${userId}`);
         if (offlinePrefs) {
           try {
             const parsedPrefs = JSON.parse(offlinePrefs);
             setPreferences(parsedPrefs);
-            console.log('Loaded offline preferences:', parsedPrefs);
+            console.log('Loaded preferences from localStorage fallback:', parsedPrefs);
           } catch (parseError) {
-            console.error('Error parsing offline preferences:', parseError);
+            console.error('Error parsing localStorage preferences:', parseError);
           }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading preferences from Firestore:', error);
+      
+      // Try to load from localStorage as fallback
+      console.log('Trying localStorage fallback');
+      const offlinePrefs = localStorage.getItem(`preferences_${userId}`);
+      if (offlinePrefs) {
+        try {
+          const parsedPrefs = JSON.parse(offlinePrefs);
+          setPreferences(parsedPrefs);
+          console.log('Loaded preferences from localStorage:', parsedPrefs);
+        } catch (parseError) {
+          console.error('Error parsing localStorage preferences:', parseError);
         }
       }
     }
@@ -139,20 +167,25 @@ export function useAuth() {
 
       console.log('setDoc completed, updating local state...');
       setPreferences(interests);
+      // Also save to localStorage as backup
+      if (user) {
+        localStorage.setItem(`preferences_${user.uid}`, JSON.stringify(interests));
+      }
       console.log('Preferences saved successfully');
     } catch (error) {
       console.error('Error saving preferences:', error);
       
-      // Handle offline errors gracefully
-      if (error instanceof Error && error.message.includes('offline')) {
-        console.log('User is offline, storing preferences locally');
-        // Store in localStorage as fallback
-        localStorage.setItem('offline_preferences', JSON.stringify(interests));
-        setPreferences(interests);
-        return;
+      // Always save to localStorage as fallback
+      console.log('Saving to localStorage as fallback');
+      if (user) {
+        localStorage.setItem(`preferences_${user.uid}`, JSON.stringify(interests));
       }
+      setPreferences(interests);
       
-      throw error;
+      // Only throw error if it's not an offline error
+      if (!(error instanceof Error && error.message.includes('offline'))) {
+        throw error;
+      }
     }
   };
 
@@ -178,10 +211,17 @@ export function useAuth() {
       return;
     }
     
+    // Prevent duplicate calls
     const newInterests = [...preferences, interest];
     console.log('Adding interest, new preferences will be:', newInterests);
-    await saveUserPreferences(newInterests);
-    console.log('addInterest completed successfully');
+    
+    try {
+      await saveUserPreferences(newInterests);
+      console.log('addInterest completed successfully');
+    } catch (error) {
+      console.error('Error in addInterest:', error);
+      throw error;
+    }
   };
 
   // Remove an interest
