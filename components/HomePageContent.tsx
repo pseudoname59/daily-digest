@@ -124,7 +124,8 @@ export default function HomePageContent() {
       showNotification('success', `"${trimmedInterest}" added to your topics!`);
     } catch (error) {
       console.error('Error adding interest:', error);
-      showNotification('error', 'Failed to add topic. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add topic. Please try again.';
+      showNotification('error', errorMessage);
     } finally {
       setAddingTopic(false);
     }
@@ -151,7 +152,8 @@ export default function HomePageContent() {
       showNotification('success', `"${topic}" added to your topics!`);
     } catch (error) {
       console.error('Error in quick add:', error);
-      showNotification('error', 'Failed to add topic. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add topic. Please try again.';
+      showNotification('error', errorMessage);
     } finally {
       setAddingTopic(false);
     }
@@ -331,7 +333,7 @@ export default function HomePageContent() {
                  />
                  <Button
                    onClick={handleAddInterest}
-                   disabled={!interest.trim() || addingTopic}
+                   disabled={!interest.trim() || addingTopic || loading}
                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                    {addingTopic ? (
@@ -341,7 +343,7 @@ export default function HomePageContent() {
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                      </svg>
                    )}
-                   {!user ? 'Sign In to Add' : addingTopic ? 'Adding...' : 'Add'}
+                   {!user ? 'Sign In to Add' : addingTopic ? 'Adding...' : loading ? 'Loading...' : 'Add'}
                  </Button>
                </div>
                

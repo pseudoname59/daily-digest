@@ -48,10 +48,16 @@ const initializeFirebase = () => {
 
 // Initialize Firebase when this module is imported
 if (typeof window !== 'undefined') {
-  // Use a longer delay to ensure DOM is fully ready and avoid hydration issues
+  // Initialize immediately and also with a delay to ensure it's ready
+  initializeFirebase();
+  
+  // Also try again after a delay to ensure it's fully initialized
   setTimeout(() => {
-    initializeFirebase();
-  }, 100);
+    if (!app || !db || !auth) {
+      console.log('Firebase not fully initialized, retrying...');
+      initializeFirebase();
+    }
+  }, 500);
 }
 
 // Export instances

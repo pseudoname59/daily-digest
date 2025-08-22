@@ -164,7 +164,12 @@ export function useAuth() {
     
     if (!user) {
       console.log('No user, returning early');
-      return;
+      throw new Error('User not authenticated');
+    }
+    
+    if (!db) {
+      console.log('Firestore not available');
+      throw new Error('Database not available');
     }
     
     // Check if interest already exists to prevent duplicates
