@@ -20,7 +20,6 @@ export default function HomePageContent() {
   const [removingTopic, setRemovingTopic] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'digest' | 'summarizer'>('digest');
-  const [isProcessing, setIsProcessing] = useState(false);
   
   // Use proper Firebase authentication
   const { user, loading, preferences, addInterest, removeInterest, signIn, signUp, logout } = useAuth();
@@ -97,7 +96,7 @@ export default function HomePageContent() {
       return;
     }
 
-    if (addingTopic || isProcessing) {
+    if (addingTopic) {
       return;
     }
 
@@ -120,7 +119,6 @@ export default function HomePageContent() {
 
     try {
       setAddingTopic(true);
-      setIsProcessing(true);
       await addInterest(trimmedInterest);
       setInterest("");
       showNotification('success', `"${trimmedInterest}" added to your topics!`);
@@ -130,7 +128,6 @@ export default function HomePageContent() {
       showNotification('error', errorMessage);
     } finally {
       setAddingTopic(false);
-      setIsProcessing(false);
     }
   };
 
@@ -140,7 +137,7 @@ export default function HomePageContent() {
       return;
     }
 
-    if (addingTopic || isProcessing) {
+    if (addingTopic) {
       return;
     }
 
@@ -151,7 +148,6 @@ export default function HomePageContent() {
 
     try {
       setAddingTopic(true);
-      setIsProcessing(true);
       await addInterest(topic);
       showNotification('success', `"${topic}" added to your topics!`);
     } catch (error) {
@@ -160,7 +156,6 @@ export default function HomePageContent() {
       showNotification('error', errorMessage);
     } finally {
       setAddingTopic(false);
-      setIsProcessing(false);
     }
   };
 
@@ -338,7 +333,7 @@ export default function HomePageContent() {
                  />
                  <Button
                    onClick={handleAddInterest}
-                   disabled={!interest.trim() || addingTopic || loading || isProcessing}
+                   disabled={!interest.trim() || addingTopic || loading}
                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                    {addingTopic ? (
@@ -348,7 +343,7 @@ export default function HomePageContent() {
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                      </svg>
                    )}
-                   {!user ? 'Sign In to Add' : addingTopic ? 'Adding...' : loading ? 'Loading...' : isProcessing ? 'Processing...' : 'Add'}
+                   {!user ? 'Sign In to Add' : addingTopic ? 'Adding...' : loading ? 'Loading...' : 'Add'}
                  </Button>
                </div>
                
@@ -373,9 +368,9 @@ export default function HomePageContent() {
                    }}
                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                    defaultValue=""
-                   disabled={!user || addingTopic || isProcessing}
+                   disabled={!user || addingTopic}
                  >
-                   <option value="">{!user ? 'Sign in to use quick add' : addingTopic || isProcessing ? 'Adding topic...' : 'Choose a topic'}</option>
+                   <option value="">{!user ? 'Sign in to use quick add' : addingTopic ? 'Adding topic...' : 'Choose a topic'}</option>
                    {topicList.map((topic) => (
                      <option key={topic} value={topic}>{topic}</option>
                    ))}

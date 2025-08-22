@@ -50,14 +50,6 @@ const initializeFirebase = () => {
 if (typeof window !== 'undefined') {
   // Initialize immediately
   initializeFirebase();
-  
-  // Check if initialization was successful, if not retry quickly
-  if (!app || !db || !auth) {
-    console.log('Firebase not initialized on first try, retrying...');
-    setTimeout(() => {
-      initializeFirebase();
-    }, 100);
-  }
 }
 
 // Export instances
